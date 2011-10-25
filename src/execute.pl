@@ -11,8 +11,9 @@
 use strict;
 use Config::Properties::Simple;
 use File::stat;
+use Proc::Background;
 use Web_CAT::FeedbackGenerator;
-use Win32::Job;
+use Web_CAT::Utilities;
 
 #=============================================================================
 # Bring command line args into local variables for easy reference
@@ -143,22 +144,20 @@ EOF
 if ( $can_proceed )
 {
     my $job = Win32::Job->new;
-    my $cmdline =
-	"cmd /c $compiler $pascalFile -vi- -o$execFile 2>&1 > $compilerLog";
-    $job->spawn( "cmd.exe", $cmdline );
-    if ( $debug )
+    my $cmdline = $Web_CAT::Utilities::SHELL
+	    . "$compiler $pascalFile -vi- -o$execFile 2>&1 > $compilerLog";
+    print $cmdline, "\n" if ( $debug );
+    my ( $exitcode, $timeout_status ) = Proc::Background::timeout_system(
+        $timeout, $cmdline );
+    if ( $timeout_status )
     {
-	print "\n$cmdline\n";
-    }
-    if ( ! $job->run( $timeout ) )
-    {
-	$can_proceed = 0;
+        $can_proceed = 0;
     }
 #    system( "$compiler $pascalFile -o$execFile -vi- -Fe$compilerLog" );
     if ( ! -f $execFile ) { $can_proceed = 0; }
     if ( $debug )
     {
-	print "\n--- after compiling ---\n can_proceed = $can_proceed\n";
+        print "\n--- after compiling ---\n can_proceed = $can_proceed\n";
     }
 }
 
